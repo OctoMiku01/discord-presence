@@ -47,7 +47,7 @@ Diese im Cloudflare-Dashboard unter *Worker → Settings → Variables and Secre
 - **Zum Testen** mit Konsole: `npm start` (Beenden mit Strg+C – dann wird der Status sofort geleert).
 - **Unsichtbar im Hintergrund:** `start-hidden.vbs` doppelklicken. Beim ersten Mal trägt es sich auch in den Windows-Autostart ein, danach startet das Programm bei jeder Anmeldung von selbst. Ausgaben landen in `presence.log`.
 - **Autostart entfernen:** `powershell -ExecutionPolicy Bypass -File autostart.ps1 -Remove` (ohne `-Remove` trägt es ihn wieder ein, ohne zu starten).
-- **Beenden:** `stop.cmd`. Die Spiele verschwinden dann spätestens nach 3 Minuten von der Website.
+- **Beenden:** `stop.cmd` doppelklicken (im PowerShell-Terminal: `.\stop.cmd`). Das Programm leert dann sofort den Discord-Status und meldet der Website, dass kein Spiel mehr läuft. Wird es hart beendet (Task-Manager, PC aus), verschwinden die Spiele nach spätestens 3 Minuten von der Website. Im Task-Manager heißt es „Node.js JavaScript Runtime“ (`node.exe`).
 
 Es läuft immer nur eine Kopie; ein zweiter Start beendet sich sofort.
 

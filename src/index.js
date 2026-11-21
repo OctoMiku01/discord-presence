@@ -23,13 +23,22 @@ function loadConfig() {
   }
 }
 
-// Only one copy may run, otherwise two of them would fight over the status.
+// Only one copy may run, otherwise two of them would fight over the status. The lock is a local
+// pipe, which stop.js also uses to ask the running copy to shut down cleanly.
+const LOCK = process.platform === "win32" ? "\\\\.\\pipe\\discord-presence-lock" : "/tmp/discord-presence.lock";
+
 function singleInstance() {
-  const name = process.platform === "win32" ? "\\\\.\\pipe\\discord-presence-lock" : "/tmp/discord-presence.lock";
   return new Promise((resolve) => {
-    const server = net.createServer();
+    const server = net.createServer((socket) => {
+      socket.on("error", () => {});
+      socket.on("data", (data) => {
+        if (data.toString().trim() !== "stop") return;
+        log("Stop requested");
+        shutdown(() => socket.end("stopped\n"));
+      });
+    });
     server.once("error", () => resolve(false));
-    server.listen(name, () => resolve(true));
+    server.listen(LOCK, () => resolve(true));
   });
 }
 
@@ -176,7 +185,8 @@ if (gateway) {
 }
 
 let stopping = false;
-async function shutdown() {
+// done: called after cleaning up, right before exiting (stop.js waits for it).
+async function shutdown(done) {
   if (stopping) return;
   stopping = true;
   log("Stopping…");
@@ -185,6 +195,7 @@ async function shutdown() {
     ipc?.stop(),
     siteEnabled ? pushToSite({ status: "offline", games: [] }) : null,
   ]);
-  process.exit(0);
+  if (typeof done === "function") done();
+  setTimeout(() => process.exit(0), 200); // Let the answer to stop.js go out first.
 }
 for (const signal of ["SIGINT", "SIGTERM", "SIGBREAK", "SIGHUP"]) process.on(signal, shutdown);

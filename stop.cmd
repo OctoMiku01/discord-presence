@@ -1,3 +1,6 @@
 @echo off
-rem Stops a hidden discord-presence (started via start-hidden.vbs or autostart).
-powershell -NoProfile -Command "Get-CimInstance Win32_Process -Filter \"Name='node.exe'\" | Where-Object { $_.CommandLine -like '*discord-presence\src\index.js*' } | ForEach-Object { Stop-Process -Id $_.ProcessId; Write-Host ('Stopped ' + $_.ProcessId) }"
+rem Stops a running discord-presence cleanly (clears the Discord status, tells the website right away).
+cd /d "%~dp0"
+node src\stop.js
+rem Keep the window open briefly after a double-click so the result can be read.
+ping -n 4 127.0.0.1 >nul

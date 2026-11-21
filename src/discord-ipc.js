@@ -75,7 +75,7 @@ export class DiscordIpc {
     socket.on("data", (chunk) => this.#onData(chunk));
     socket.on("error", () => {});
     socket.on("close", () => {
-      if (this.#ready) this.#log("Discord RPC: connection closed, retrying");
+      if (this.#ready && this.#retry !== "stopped") this.#log("Discord RPC: connection closed, retrying");
       this.#ready = false;
       this.#socket = null;
       for (const { reject } of this.#pending.values()) reject(new Error("connection closed"));
