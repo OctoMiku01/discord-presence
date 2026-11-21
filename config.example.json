@@ -1,0 +1,15 @@
+{
+  "discord": {
+    "clientId": "",
+    "botToken": "",
+    "userId": ""
+  },
+  "lastfm": {
+    "user": "OctoMiku01",
+    "apiKey": ""
+  },
+  "site": {
+    "url": "https://mikubeam.de",
+    "token": ""
+  }
+}

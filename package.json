@@ -1,0 +1,11 @@
+{
+  "name": "discord-presence",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Last.fm song as Discord status, Discord games on mikubeam.de",
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "start": "node src/index.js"
+  }
+}
