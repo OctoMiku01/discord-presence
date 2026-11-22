@@ -35,6 +35,42 @@ async function itunesCover(artist, name) {
   }
 }
 
+// Song length (ms) from iTunes and Deezer for songs Last.fm has no length for. Only taken when the
+// result is clearly the same song: same title (ignoring case, punctuation and "(feat. …)"-style
+// additions) and an artist that matches one of the song's artists. 0 = not found.
+const normalize = (s) => String(s ?? "")
+  .normalize("NFKC")
+  .toLowerCase()
+  .replace(/[(\[（【].*?[)\]）】]/g, "") // (feat. …), [Remastered], 【MV】
+  .replace(/[^\p{L}\p{N}]+/gu, "");
+const artistParts = (artist) => String(artist).split(/\s*(?:&|,|、|×|\bx\b|\bfeat\.?|\bft\.?|\bwith\b)\s*/i)
+  .map(normalize).filter(Boolean);
+
+// Other versions of a song have a different length; only accept them if the song itself is one.
+const VARIANT = /remix|\bmix\b|\blive\b|\bver\b|version|\bedit\b|instrumental|acoustic|cover|off ?vocal|karaoke|ライブ|リミックス/i;
+
+function sameSong(artist, name, otherArtist, otherName) {
+  if (!normalize(name) || normalize(name) !== normalize(otherName)) return false;
+  if (VARIANT.test(otherName) && !VARIANT.test(name)) return false;
+  const theirs = normalize(otherArtist);
+  return artistParts(artist).some((part) => theirs.includes(part) || part.includes(theirs));
+}
+
+async function searchDuration(artist, name) {
+  const term = `${artist} ${name}`;
+  const itunes = fetch(`https://itunes.apple.com/search?${new URLSearchParams({ term, entity: "song", limit: "5", country: "JP" })}`,
+    { signal: AbortSignal.timeout(5_000) })
+    .then((res) => (res.ok ? res.json() : null))
+    .then((data) => data?.results?.find((r) => sameSong(artist, name, r.artistName, r.trackName))?.trackTimeMillis ?? 0)
+    .catch(() => 0);
+  const deezer = fetch(`https://api.deezer.com/search?limit=5&q=${encodeURIComponent(term)}`, { signal: AbortSignal.timeout(5_000) })
+    .then((res) => (res.ok ? res.json() : null))
+    .then((data) => (data?.data?.find((r) => sameSong(artist, name, r.artist?.name, r.title))?.duration ?? 0) * 1000)
+    .catch(() => 0);
+  const [a, b] = await Promise.all([itunes, deezer]);
+  return a || b;
+}
+
 // The website's cover search (GET /api/cover). Returns the URL, null for "nothing found" or
 // undefined when the website can't be asked (not configured, offline, error).
 async function siteCover(site, artist, name) {
@@ -63,7 +99,7 @@ async function trackInfo(artist, name, cover, apiKey, site) {
     call({ method: "track.getInfo", artist, track: name, autocorrect: "1" }, apiKey).catch(() => null),
     cover ? null : siteCover(site, artist, name),
   ]);
-  const duration = Number(data?.track?.duration) || 0;
+  const duration = Number(data?.track?.duration) || (await searchDuration(artist, name));
   cover ||= fromSite;
   if (cover === undefined) {
     // Website not reachable: own, smaller search.

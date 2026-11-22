@@ -67,6 +67,8 @@ const field = (s) => {
   return t ? (t.length < 2 ? `${t} ` : t).slice(0, 128) : undefined;
 };
 
+const sameText = (a, b) => String(a ?? "").trim().toLowerCase() === String(b ?? "").trim().toLowerCase();
+
 function musicActivity(track, startedAt) {
   const end = track.duration ? startedAt + track.duration : null;
   const artistUrl = track.url?.includes("/_/") ? track.url.split("/_/")[0] : undefined;
@@ -79,7 +81,8 @@ function musicActivity(track, startedAt) {
     state_url: artistUrl,
     // Without a known length (or once it has run out – paused, on repeat) only the elapsed time.
     timestamps: end && Date.now() < end ? { start: startedAt, end } : { start: startedAt },
-    assets: track.cover ? { large_image: track.cover, large_text: field(track.album) } : undefined,
+    // The album is shown as a third line; for singles it only repeats the title, so leave it out.
+    assets: track.cover ? { large_image: track.cover, large_text: sameText(track.album, track.name) ? undefined : field(track.album) } : undefined,
     buttons: track.url ? [{ label: "View on Last.fm", url: track.url }] : undefined,
     instance: false,
   };
