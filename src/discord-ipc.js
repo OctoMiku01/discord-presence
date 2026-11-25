@@ -139,18 +139,27 @@ export class DiscordIpc {
     });
   }
 
-  async #send(activity) {
+  async #send(activity, retry = true) {
     const strip = (a) => a && Object.fromEntries(Object.entries(a).filter(([k]) => !NEW_FIELDS.includes(k)));
     try {
       await this.#request("SET_ACTIVITY", { pid: process.pid, activity: this.#legacy ? strip(activity) : activity });
     } catch (err) {
-      const hasNew = activity && NEW_FIELDS.some((k) => k in activity);
-      if (!this.#legacy && hasNew) {
-        this.#log(`Discord RPC: activity rejected (${err.message}), trying again without newer fields`);
+      if (!retry || !activity) {
+        this.#log(`Discord RPC: could not set activity (${err.message})`);
+        return;
+      }
+      // Only an older Discord that doesn't know a newer field at all ("… is not allowed") means
+      // leaving them out for good. Anything else (e.g. a value too long) is about this one song.
+      const unknownNewField = NEW_FIELDS.some((k) => err.message.includes(`"${k}" is not allowed`));
+      if (!this.#legacy && unknownNewField) {
+        this.#log(`Discord RPC: this Discord doesn't know the newer fields, leaving them out (${err.message})`);
         this.#legacy = true;
         return this.#send(activity);
       }
-      this.#log(`Discord RPC: could not set activity (${err.message})`);
+      // Fall back to the essentials for this song: title, artist and time, without links and picture.
+      this.#log(`Discord RPC: activity rejected (${err.message}), trying again without links and cover`);
+      const { details, state, timestamps, type, status_display_type, instance } = activity;
+      return this.#send({ type, status_display_type, details, state, timestamps, instance }, false);
     }
   }
 }

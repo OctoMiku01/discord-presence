@@ -61,29 +61,36 @@ if (!musicEnabled && !siteEnabled) {
 let spotify = false; // Spotify linked to Discord already shows the song.
 const ipc = musicEnabled ? new DiscordIpc(clientId, log) : null;
 
-// Discord wants 2–128 characters per text field.
+// Discord wants 2–128 characters per text field; longer titles are cut with "…".
 const field = (s) => {
   const t = String(s ?? "").trim();
-  return t ? (t.length < 2 ? `${t} ` : t).slice(0, 128) : undefined;
+  if (!t) return undefined;
+  if (t.length < 2) return `${t} `;
+  return t.length > 128 ? `${t.slice(0, 127)}…` : t;
 };
+// Links and pictures over Discord's length limits are left out (Japanese titles make Last.fm
+// links long, since every character becomes %XX%XX%XX).
+const limit = (url, max) => (url && url.length <= max ? url : undefined);
 
 const sameText = (a, b) => String(a ?? "").trim().toLowerCase() === String(b ?? "").trim().toLowerCase();
 
 function musicActivity(track, startedAt) {
   const end = track.duration ? startedAt + track.duration : null;
   const artistUrl = track.url?.includes("/_/") ? track.url.split("/_/")[0] : undefined;
+  const cover = limit(track.cover, 256);
+  const buttonUrl = limit(track.url, 512);
   return {
     type: 2, // "Listening to"
     status_display_type: 2, // Member list shows the song instead of the app name.
     details: field(track.name),
-    details_url: track.url || undefined,
+    details_url: limit(track.url, 256),
     state: field(track.artist),
-    state_url: artistUrl,
+    state_url: limit(artistUrl, 256),
     // Without a known length (or once it has run out – paused, on repeat) only the elapsed time.
     timestamps: end && Date.now() < end ? { start: startedAt, end } : { start: startedAt },
     // The album is shown as a third line; for singles it only repeats the title, so leave it out.
-    assets: track.cover ? { large_image: track.cover, large_text: sameText(track.album, track.name) ? undefined : field(track.album) } : undefined,
-    buttons: track.url ? [{ label: "View on Last.fm", url: track.url }] : undefined,
+    assets: cover ? { large_image: cover, large_text: sameText(track.album, track.name) ? undefined : field(track.album) } : undefined,
+    buttons: buttonUrl ? [{ label: "View on Last.fm", url: buttonUrl }] : undefined,
     instance: false,
   };
 }
